@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lebara Report Logbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: register-style logbook — masthead with logo, KPI strip, location breakdown, filter bar, ruled ledger (cards on phones); entry form slides in as a sheet */
+:root{
+  --paper:#F5F7FA; --sheet:#FFFFFF; --ink:#16233A; --ink-2:#4A5872; --rule:#DCE2EC; --rule-2:#EEF1F6;
+  --accent:#1E4FB0; --accent-soft:#E6EDFB; --on-accent:#FFFFFF;
+  --ok:#17795A; --ok-soft:#E3F4EC; --warn:#A6620A; --warn-soft:#FCF0DC; --bad:#B4322B; --bad-soft:#FBE6E4; --mute:#6B778C; --mute-soft:#EDF0F4;
+  --display:"Archivo","Arial Narrow",system-ui,sans-serif; --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --shadow:0 18px 50px rgba(16,30,60,.18);
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#0E1420; --sheet:#151D2C; --ink:#E6ECF6; --ink-2:#A3B0C6; --rule:#2A3549; --rule-2:#1C2535;
+  --accent:#7FA6F5; --accent-soft:#1D2C4A; --on-accent:#0B1322;
+  --ok:#5FCB9E; --ok-soft:#173327; --warn:#F0B35A; --warn-soft:#3A2A12; --bad:#F08A83; --bad-soft:#3D1D1B; --mute:#8D99AE; --mute-soft:#222B3B;
+  --shadow:0 18px 50px rgba(0,0,0,.5); color-scheme:dark}}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px));display:grid;gap:20px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--sheet)}
+
+/* masthead */
+.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:3px double var(--rule);padding-bottom:18px}
+.brand{display:grid;gap:14px;min-width:0}
+.logo{display:flex;align-items:center;color:var(--ink)}
+.logo-svg{display:block;height:64px;width:auto;max-width:100%}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,38px);line-height:1.05;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.mast p{margin:6px 0 0;color:var(--ink-2);max-width:62ch}
+@media (max-width:520px){.brand{gap:10px}.logo-svg{height:48px}.mast p{font-size:13px}}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border:1px solid var(--rule);background:var(--sheet);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary,.btn.blue{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.primary:hover,.btn.blue:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2)}
+.btn.small{padding:6px 10px;font-size:12.5px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.lockico{font-size:12px}
+
+/* KPI strip */
+.totals{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--rule);background:var(--sheet);border-radius:10px;overflow:hidden}
+.tot{padding:14px 16px;border-left:1px solid var(--rule-2);min-width:0}
+.tot:first-child{border-left:0}
+.tot .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.tot .v{font-family:var(--display);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px}
+.tot .s{font-size:12px;color:var(--ink-2)}
+.tot.alert .v{color:var(--bad)}
+.meter{height:6px;border-radius:999px;background:var(--rule-2);overflow:hidden;margin:6px 0 4px}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:999px;width:0;transition:width .3s}
+.meter.ok i{background:var(--ok)}
+@media (max-width:900px){.totals{grid-template-columns:repeat(2,minmax(0,1fr))}.tot{border-left:0;border-top:1px solid var(--rule-2)}.tot:nth-child(-n+2){border-top:0}.tot:nth-child(even){border-left:1px solid var(--rule-2)}.tot:last-child{grid-column:1/-1}}
+
+/* location breakdown */
+.regions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.reg{all:unset;box-sizing:border-box;cursor:pointer;background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;display:grid;gap:4px;min-width:0}
+.reg:hover{border-color:var(--ink-2)}
+.reg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.reg[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.reg-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.reg-name{font-weight:700}
+.reg-n{font-family:var(--display);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
+.reg-sub{font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.reg-sub .od{color:var(--bad);font-weight:600}
+@media (max-width:720px){.regions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* filters */
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bar .search{flex:1 1 240px;min-width:0}
+.field-inline{border:1px solid var(--rule);background:var(--sheet);border-radius:8px;padding:8px 10px;min-width:0}
+.field-inline.on{border-color:var(--accent);background:var(--accent-soft)}
+.count{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-left:auto}
+
+/* ledger */
+.ledger{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:1240px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+th{font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);background:var(--rule-2);white-space:nowrap}
+th button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+th button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+th button .arr{opacity:.35;font-size:10px}
+th button[data-dir] .arr{opacity:1;color:var(--accent)}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--accent-soft)}
+tbody tr.is-overdue td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+td.no{font-family:var(--mono);color:var(--ink-2);white-space:nowrap;font-size:12.5px}
+td.date{font-family:var(--mono);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+td.num{font-family:var(--mono);text-align:right}
+th.num{text-align:right}
+.rname{font-weight:600;margin-top:4px}
+.sub{color:var(--ink-2);font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st-Delivered{background:var(--ok-soft);color:var(--ok)}
+.st-In-progress{background:var(--accent-soft);color:var(--accent)}
+.st-Requested{background:var(--mute-soft);color:var(--ink-2)}
+.st-On-hold{background:var(--warn-soft);color:var(--warn)}
+.st-Cancelled{background:var(--mute-soft);color:var(--mute);text-decoration:line-through}
+.type{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:1px 7px}
+.type-Manual{background:var(--warn-soft);color:var(--warn)}
+.type-Digital{background:var(--accent-soft);color:var(--accent)}
+.type-Automated{background:var(--ok-soft);color:var(--ok)}
+.type-Semi-Automated{background:var(--mute-soft);color:var(--ink-2)}
+.region{font-weight:600;white-space:nowrap}
+.flag{font-family:var(--mono);font-size:11px;font-weight:500;white-space:nowrap}
+.flag.late,.flag.overdue{color:var(--bad)} .flag.ontime{color:var(--ok)} .flag.soon{color:var(--warn)}
+
+/* phone cards */
+.cards{display:none;list-style:none;margin:0;padding:0}
+.card{padding:14px 16px;border-bottom:1px solid var(--rule-2);display:grid;gap:6px;cursor:pointer}
+.card:last-child{border-bottom:0}
+.card.is-overdue{box-shadow:inset 3px 0 0 var(--bad)}
+.card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--ink-2)}
+.card-meta b{color:var(--ink);font-weight:600}
+@media (max-width:720px){.scroll{display:none}.cards{display:block}}
+
+.empty{padding:48px 20px;text-align:center;display:grid;gap:10px;justify-items:center}
+.empty h2{font-family:var(--display);font-size:20px;margin:0}
+.empty p{margin:0;color:var(--ink-2);max-width:52ch}
+.notice{padding:10px 14px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+.lock{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px;border:1px solid var(--rule);border-radius:10px;background:var(--sheet)}
+.lock>div{flex:1 1 260px;min-width:0}
+.lock input{flex:0 1 220px}
+
+/* sheet / form */
+.scrim{position:fixed;inset:0;background:rgba(10,18,32,.45);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(580px,100%);background:var(--sheet);z-index:21;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.dh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--rule)}
+.dh h2{font-family:var(--display);font-size:20px;margin:0}
+.db{overflow-y:auto;padding:18px 22px;display:grid;gap:16px;flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:520px){.grid2,.grid3{grid-template-columns:1fr}}
+.f{display:grid;gap:5px;min-width:0}
+.f label{font-size:12px;font-weight:600;color:var(--ink-2)}
+.f label .req{color:var(--bad)}
+.f input,.f select,.f textarea{border:1px solid var(--rule);background:var(--paper);border-radius:7px;padding:9px 10px;width:100%;min-width:0}
+.f textarea{min-height:74px;resize:vertical}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.seg label{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--rule);border-radius:7px;padding:9px 10px;cursor:pointer;font-weight:600;color:var(--ink);background:var(--paper)}
+.seg input{accent-color:var(--accent);width:auto;margin:0}
+.seg label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.legend{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);border-top:1px solid var(--rule-2);padding-top:12px}
+.meta-line{font-size:12px;color:var(--ink-2);background:var(--paper);border-radius:8px;padding:8px 12px}
+.df{display:flex;gap:10px;align-items:center;padding:14px 22px;border-top:1px solid var(--rule);flex-wrap:wrap}
+.df .spacer{flex:1}
+.confirm{flex-basis:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--bad);background:var(--bad-soft);border-radius:8px;padding:10px 12px}
+.confirm input{flex:1 1 140px;min-width:0;background:var(--sheet)}
+.confirm .lbl{flex-basis:100%;font-weight:600}
+.confirm .err{flex-basis:100%}
+.err{color:var(--bad);font-size:12.5px}
+
+.modal{position:fixed;inset:0;display:grid;place-items:center;z-index:25;padding:16px}
+.modal-card{width:min(400px,100%);background:var(--sheet);border-radius:10px;box-shadow:var(--shadow);padding:22px;display:grid;gap:14px}
+.modal-card h2{font-family:var(--display);font-size:20px;margin:0}
+.modal-card p{margin:0;color:var(--ink-2);font-size:13px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;z-index:30;font-weight:500;max-width:calc(100% - 32px)}
+footer{font-size:12px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between}
+@media (prefers-reduced-motion:no-preference){.drawer{animation:slide .22s ease-out}@keyframes slide{from{transform:translateX(24px)}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="brand">
+      <div class="logo">
+        <svg class="logo-svg" viewBox="0 0 1640 512" role="img" aria-label="Lebara Nigeria" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 0H416A96 96 0 0 1 512 96V512H96A96 96 0 0 1 0 416Z" fill="#242DE0"/>
+          <path d="M176 107h69v229h91v69H190a14 14 0 0 1-14-14Z" fill="#FFFFFF"/>
+          <path fill="currentColor" d="M629.25390625 299.0H692.486328125V283.619140625H647.505859375V197.14453125H629.25390625Z M741.36328125 300.572265625C758.384765625 300.572265625 770.279296875 292.4375 773.970703125 280.064453125L757.6328125 276.71484375C755.240234375 283.208984375 749.361328125 286.626953125 741.568359375 286.626953125C730.15234375 286.626953125 722.427734375 279.380859375 721.94921875 265.77734375H775.1328125V260.171875C775.1328125 233.375 758.86328125 221.6171875 740.201171875 221.6171875C718.326171875 221.6171875 704.244140625 237.75 704.244140625 261.265625C704.244140625 285.19140625 718.326171875 300.572265625 741.36328125 300.572265625ZM722.017578125 253.677734375C722.837890625 243.4921875 729.400390625 235.5625 740.26953125 235.5625C750.865234375 235.5625 756.8125 242.740234375 757.837890625 253.677734375Z M830.708984375 300.3671875C848.82421875 300.3671875 862.291015625 286.01171875 862.291015625 260.923828125C862.291015625 235.494140625 848.4140625 221.6171875 830.77734375 221.6171875C817.173828125 221.6171875 811.568359375 229.8203125 808.90234375 235.220703125H808.150390625V197.14453125H790.376953125V299.0H807.740234375V286.900390625H808.90234375C811.63671875 292.4375 817.583984375 300.3671875 830.708984375 300.3671875ZM825.923828125 285.73828125C814.302734375 285.73828125 807.80859375 275.7578125 807.80859375 260.85546875C807.80859375 245.953125 814.166015625 236.24609375 825.923828125 236.24609375C837.955078125 236.24609375 844.0390625 246.63671875 844.0390625 260.85546875C844.0390625 275.2109375 837.818359375 285.73828125 825.923828125 285.73828125Z M899.068359375 300.572265625C910.962890625 300.572265625 918.208984375 295.03515625 921.55859375 288.47265625H922.2421875V299.0H939.263671875V247.935546875C939.263671875 227.564453125 922.447265625 221.6171875 908.091796875 221.6171875C892.779296875 221.6171875 880.201171875 228.111328125 875.689453125 241.578125L892.1640625 244.927734375C894.009765625 239.869140625 899.2734375 235.2890625 908.16015625 235.2890625C916.841796875 235.2890625 921.490234375 239.6640625 921.490234375 247.115234375V247.45703125C921.490234375 252.720703125 915.884765625 252.92578125 902.623046875 254.361328125C887.857421875 255.93359375 873.501953125 260.30859375 873.501953125 277.53515625C873.501953125 292.57421875 884.5078125 300.572265625 899.068359375 300.572265625ZM903.6484375 287.37890625C896.12890625 287.37890625 890.728515625 283.9609375 890.728515625 277.330078125C890.728515625 270.357421875 896.744140625 267.41796875 904.7421875 266.32421875C909.322265625 265.708984375 919.234375 264.478515625 921.626953125 262.564453125V271.587890625C921.626953125 280.064453125 914.5859375 287.37890625 903.6484375 287.37890625Z M958.130859375 299.0H975.904296875V254.01953125C975.904296875 244.3125 983.21875 237.4765625 993.130859375 237.4765625C996.275390625 237.4765625 1000.03515625 237.955078125 1001.5390625 238.365234375V222.02734375C999.830078125 221.75390625 997.02734375 221.548828125 995.044921875 221.548828125C986.294921875 221.548828125 978.912109375 226.5390625 976.177734375 235.357421875H975.357421875V222.57421875H958.130859375Z M1035.03515625 300.572265625C1046.9296875 300.572265625 1054.17578125 295.03515625 1057.525390625 288.47265625H1058.208984375V299.0H1075.23046875V247.935546875C1075.23046875 227.564453125 1058.4140625 221.6171875 1044.05859375 221.6171875C1028.74609375 221.6171875 1016.16796875 228.111328125 1011.65625 241.578125L1028.130859375 244.927734375C1029.9765625 239.869140625 1035.240234375 235.2890625 1044.126953125 235.2890625C1052.80859375 235.2890625 1057.45703125 239.6640625 1057.45703125 247.115234375V247.45703125C1057.45703125 252.720703125 1051.8515625 252.92578125 1038.58984375 254.361328125C1023.82421875 255.93359375 1009.46875 260.30859375 1009.46875 277.53515625C1009.46875 292.57421875 1020.474609375 300.572265625 1035.03515625 300.572265625ZM1039.615234375 287.37890625C1032.095703125 287.37890625 1026.6953125 283.9609375 1026.6953125 277.330078125C1026.6953125 270.357421875 1032.7109375 267.41796875 1040.708984375 266.32421875C1045.2890625 265.708984375 1055.201171875 264.478515625 1057.59375 262.564453125V271.587890625C1057.59375 280.064453125 1050.552734375 287.37890625 1039.615234375 287.37890625Z M1130.19140625 299.0H1148.78515625V248.4140625C1148.78515625 242.740234375 1148.169921875 232.0078125 1147.486328125 219.4296875C1154.322265625 232.69140625 1158.150390625 239.9375 1163.482421875 248.482421875L1195.26953125 299.0H1215.982421875V197.14453125H1197.45703125V250.6015625C1197.45703125 256.822265625 1197.8671875 267.14453125 1198.55078125 276.98828125C1194.107421875 266.802734375 1189.6640625 259.078125 1186.041015625 253.267578125L1150.8359375 197.14453125H1130.19140625Z M1235.669921875 299.0H1253.443359375V222.57421875H1235.669921875ZM1244.556640625 211.7734375C1250.23046875 211.7734375 1254.947265625 207.3984375 1254.947265625 201.998046875C1254.947265625 196.59765625 1250.23046875 192.291015625 1244.556640625 192.291015625C1238.8828125 192.291015625 1234.234375 196.59765625 1234.234375 201.998046875C1234.234375 207.3984375 1238.8828125 211.7734375 1244.556640625 211.7734375Z M1305.259765625 329.21484375C1325.8359375 329.21484375 1341.01171875 319.64453125 1341.01171875 299.205078125V222.57421875H1323.580078125V235.220703125H1322.623046875C1319.888671875 229.8203125 1314.078125 221.6171875 1300.54296875 221.6171875C1282.90625 221.6171875 1268.9609375 235.494140625 1268.9609375 260.58203125C1268.9609375 285.46484375 1282.837890625 297.837890625 1300.40625 297.837890625C1313.599609375 297.837890625 1319.205078125 290.865234375 1321.939453125 285.328125H1323.443359375V299.751953125C1323.443359375 310.689453125 1316.197265625 315.6796875 1305.19140625 315.6796875C1294.048828125 315.6796875 1289.33203125 310.416015625 1286.939453125 306.109375L1271.900390625 311.509765625C1275.728515625 321.626953125 1286.87109375 329.21484375 1305.259765625 329.21484375ZM1305.396484375 283.82421875C1293.501953125 283.82421875 1287.14453125 274.52734375 1287.14453125 260.4453125C1287.14453125 246.568359375 1293.365234375 236.24609375 1305.396484375 236.24609375C1317.154296875 236.24609375 1323.51171875 245.953125 1323.51171875 260.4453125C1323.51171875 275.07421875 1317.017578125 283.82421875 1305.396484375 283.82421875Z M1393.6484375 300.572265625C1410.669921875 300.572265625 1422.564453125 292.4375 1426.255859375 280.064453125L1409.91796875 276.71484375C1407.525390625 283.208984375 1401.646484375 286.626953125 1393.853515625 286.626953125C1382.4375 286.626953125 1374.712890625 279.380859375 1374.234375 265.77734375H1427.41796875V260.171875C1427.41796875 233.375 1411.1484375 221.6171875 1392.486328125 221.6171875C1370.611328125 221.6171875 1356.529296875 237.75 1356.529296875 261.265625C1356.529296875 285.19140625 1370.611328125 300.572265625 1393.6484375 300.572265625ZM1374.302734375 253.677734375C1375.123046875 243.4921875 1381.685546875 235.5625 1392.5546875 235.5625C1403.150390625 235.5625 1409.09765625 242.740234375 1410.123046875 253.677734375Z M1442.662109375 299.0H1460.435546875V254.01953125C1460.435546875 244.3125 1467.75 237.4765625 1477.662109375 237.4765625C1480.806640625 237.4765625 1484.56640625 237.955078125 1486.0703125 238.365234375V222.02734375C1484.361328125 221.75390625 1481.55859375 221.548828125 1479.576171875 221.548828125C1470.826171875 221.548828125 1463.443359375 226.5390625 1460.708984375 235.357421875H1459.888671875V222.57421875H1442.662109375Z M1498.23828125 299.0H1516.01171875V222.57421875H1498.23828125ZM1507.125 211.7734375C1512.798828125 211.7734375 1517.515625 207.3984375 1517.515625 201.998046875C1517.515625 196.59765625 1512.798828125 192.291015625 1507.125 192.291015625C1501.451171875 192.291015625 1496.802734375 196.59765625 1496.802734375 201.998046875C1496.802734375 207.3984375 1501.451171875 211.7734375 1507.125 211.7734375Z M1556.20703125 300.572265625C1568.1015625 300.572265625 1575.34765625 295.03515625 1578.697265625 288.47265625H1579.380859375V299.0H1596.40234375V247.935546875C1596.40234375 227.564453125 1579.5859375 221.6171875 1565.23046875 221.6171875C1549.91796875 221.6171875 1537.33984375 228.111328125 1532.828125 241.578125L1549.302734375 244.927734375C1551.1484375 239.869140625 1556.412109375 235.2890625 1565.298828125 235.2890625C1573.98046875 235.2890625 1578.62890625 239.6640625 1578.62890625 247.115234375V247.45703125C1578.62890625 252.720703125 1573.0234375 252.92578125 1559.76171875 254.361328125C1544.99609375 255.93359375 1530.640625 260.30859375 1530.640625 277.53515625C1530.640625 292.57421875 1541.646484375 300.572265625 1556.20703125 300.572265625ZM1560.787109375 287.37890625C1553.267578125 287.37890625 1547.8671875 283.9609375 1547.8671875 277.330078125C1547.8671875 270.357421875 1553.8828125 267.41796875 1561.880859375 266.32421875C1566.4609375 265.708984375 1576.373046875 264.478515625 1578.765625 262.564453125V271.587890625C1578.765625 280.064453125 1571.724609375 287.37890625 1560.787109375 287.37890625Z"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Lebara Report Logbook</h1>
+        <p>Every report the team prepares, in one register: what it is, what type it is (manual, digital, automated or semi-automated), which location it covers, who asked, who built it and whether it went out on time.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="refreshBtn" type="button">Refresh</button>
+      <button class="btn" id="exportBtn" type="button"><span class="lockico" aria-hidden="true">&#128274;</span> Export CSV</button>
+      <button class="btn primary" id="newBtn" type="button" title="Shortcut: N">+ Log a report</button>
+    </div>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+  <form id="lockForm" class="lock" hidden>
+    <div><strong>Enter the team access code</strong><div class="sub">Ask your logbook admin for the code. You only need to enter it once on this device.</div></div>
+    <input class="field-inline" id="lockCode" type="password" autocomplete="off" placeholder="Team access code" aria-label="Team access code">
+    <button class="btn blue" type="submit">Open logbook</button>
+    <span class="err" id="lockErr" hidden>That code didn't work. Check it and try again.</span>
+  </form>
+
+
+  <section class="totals" aria-label="Summary for the entries shown">
+    <div class="tot"><div class="k">Reports logged</div><div class="v" id="tTotal">0</div><div class="s" id="tTotalS">—</div></div>
+    <div class="tot"><div class="k">Digital rate</div><div class="v" id="tAuto">—</div><div class="meter"><i id="tAutoBar"></i></div><div class="s" id="tAutoS">share of reports that are digital</div></div>
+    <div class="tot"><div class="k">On-time rate</div><div class="v" id="tOn">—</div><div class="meter ok"><i id="tOnBar"></i></div><div class="s" id="tOnS">of delivered reports with a due date</div></div>
+    <div class="tot" id="tOverBox"><div class="k">Overdue &amp; open</div><div class="v" id="tOver">0</div><div class="s" id="tOverS">past due, not delivered</div></div>
+    <div class="tot"><div class="k">Hours on manual reports</div><div class="v" id="tHrs">0</div><div class="s" id="tHrsS">time that going digital could free up</div></div>
+  </section>
+
+  <section class="regions" id="regions" aria-label="Reports by location"></section>
+
+  <section class="bar" aria-label="Filters">
+    <input class="field-inline search" id="fSearch" type="search" placeholder="Search report, requester, analyst, state…  ( / )" aria-label="Search">
+    <select class="field-inline" id="fMonth" aria-label="Month"><option value="">Month</option></select>
+    <select class="field-inline" id="fYear" aria-label="Year"><option value="">Year</option></select>
+    <select class="field-inline" id="fType" aria-label="Type of Report"><option value="">Type of Report</option></select>
+    <select class="field-inline" id="fRegion" aria-label="Location"><option value="">Location</option></select>
+    <select class="field-inline" id="fCat" aria-label="Category"><option value="">Category</option></select>
+    <select class="field-inline" id="fStatus" aria-label="Status"><option value="">Status</option><option value="__open">Open (not delivered)</option><option value="__overdue">Overdue</option><option value="__soon">Due in next 7 days</option></select>
+    <button class="btn ghost small" id="clearBtn" type="button" hidden>Clear filters</button>
+    <span class="count" id="count"></span>
+  </section>
+
+  <section class="ledger">
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th><button type="button" data-sort="seq">Log no. <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="requestedDate">Requested Date <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="reportName">Type of Report <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="region">Location <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="category">Category <span class="arr">▼</span></button></th>
+          <th>Frequency</th>
+          <th><button type="button" data-sort="requestedBy">Requested by <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="preparedBy">Prepared by <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="dueDate">Due <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="deliveredDate">Delivered <span class="arr">▼</span></button></th>
+          <th><button type="button" data-sort="status">Status <span class="arr">▼</span></button></th>
+          <th class="num"><button type="button" data-sort="hours">Hrs <span class="arr">▼</span></button></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <ul class="cards" id="cards"></ul>
+    <div class="empty" id="empty" hidden>
+      <h2 id="emptyH">Loading the logbook…</h2>
+      <p id="emptyP">Entries recorded by the team appear here.</p>
+      <button class="btn primary" type="button" id="emptyBtn" hidden>+ Log a report</button>
+    </div>
+  </section>
+
+  <footer>
+    <span>Click any entry to update it, or use <b>Log again</b> for recurring reports. Shortcuts: <kbd>N</kbd> new entry, <kbd>/</kbd> search.</span>
+    <span id="synced">Connecting to the logbook…</span>
+  </footer>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="dTitle">
+  <form id="form" novalidate style="display:contents">
+    <div class="dh"><h2 id="dTitle">Log a report</h2><button class="btn ghost" type="button" id="closeBtn">Close</button></div>
+    <div class="db">
+      <div class="meta-line" id="metaLine" hidden></div>
+      <div class="f"><label for="iName">Report name <span class="req">*</span></label>
+        <input id="iName" list="nameList" required placeholder="e.g. Weekly Sales &amp; Distribution Report">
+        <datalist id="nameList"></datalist></div>
+      <div class="f"><label>Type of report <span class="req">*</span></label>
+        <div class="seg" role="radiogroup" aria-label="Type of report">
+          <label><input type="radio" name="iType" id="iTypeManual" value="Manual"> Manual Report</label>
+          <label><input type="radio" name="iType" id="iTypeDigital" value="Digital"> Digital Report</label>
+          <label><input type="radio" name="iType" id="iTypeAuto" value="Automated"> Automated Report</label>
+          <label><input type="radio" name="iType" id="iTypeSemi" value="Semi-Automated"> Semi-Automated Report</label>
+        </div></div>
+      <div class="grid2">
+        <div class="f"><label for="iRegion">Location <span class="req">*</span></label><select id="iRegion" required></select></div>
+        <div class="f"><label for="iState">State</label><select id="iState"></select></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label for="iCat">Category <span class="req">*</span></label><select id="iCat" required></select></div>
+        <div class="f"><label for="iFreq">Frequency</label><select id="iFreq"></select></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label for="iReqBy">Requested by <span class="req">*</span></label><input id="iReqBy" list="reqList" required placeholder="Name or role, e.g. COO"><datalist id="reqList"></datalist></div>
+        <div class="f"><label for="iUnit">Requesting unit</label><input id="iUnit" list="unitList" placeholder="e.g. Sales &amp; Distribution"><datalist id="unitList"></datalist></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label for="iPrep">Prepared by <span class="req">*</span></label><input id="iPrep" required list="prepList" placeholder="Analyst name"><datalist id="prepList"></datalist></div>
+        <div class="f"><label for="iChan">Delivered via</label><select id="iChan"></select></div>
+      </div>
+      <div class="legend">Dates &amp; status</div>
+      <div class="grid3">
+        <div class="f"><label for="iReq">Requested Date <span class="req">*</span></label><input id="iReq" type="date" required></div>
+        <div class="f"><label for="iDue">Due Date</label><input id="iDue" type="date"></div>
+        <div class="f"><label for="iDel">Delivered Date</label><input id="iDel" type="date"></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label for="iStatus">Status</label><select id="iStatus"></select></div>
+        <div class="f"><label for="iHrs">Hours spent</label><input id="iHrs" type="number" min="0" step="0.25" inputmode="decimal" placeholder="0.0"></div>
+      </div>
+      <div class="legend">Working notes</div>
+      <div class="f"><label for="iSrc">Data sources used</label><input id="iSrc" placeholder="e.g. SLOT + Parasol sales extracts, CX ticket export"></div>
+      <div class="f"><label for="iRem">Remarks / issues</label><textarea id="iRem" placeholder="Data gaps, late inputs, revisions requested, reasons for delay"></textarea></div>
+      <div class="err" id="formErr" hidden></div>
+    </div>
+    <div class="df">
+      <div class="confirm" id="delConfirm" hidden><span class="lbl">Only admins can delete entries. Enter the admin password to delete this one for everyone.</span><input id="delPass" class="field-inline" type="password" autocomplete="off" placeholder="Admin password" aria-label="Admin password"><button class="btn danger" type="button" id="delYes">Delete</button><button class="btn ghost" type="button" id="delNo">Keep</button><span class="err" id="delErr" hidden></span></div>
+      <button class="btn danger" type="button" id="delBtn" hidden title="Admins only"><span class="lockico" aria-hidden="true">&#128274;</span> Delete</button>
+      <button class="btn" type="button" id="againBtn" hidden title="Start a new entry with the same report details">Log again</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="cancelBtn">Cancel</button>
+      <button class="btn primary" type="submit" id="saveBtn">Save entry</button>
+    </div>
+  </form>
+</aside>
+
+<!-- Admin export -->
+<div class="scrim" id="exScrim" hidden></div>
+<div class="modal" id="exModal" hidden role="dialog" aria-modal="true" aria-labelledby="exTitle">
+  <form class="modal-card" id="exForm" novalidate>
+    <h2 id="exTitle">Export to CSV</h2>
+    <p>Only logbook admins can export. Enter the admin password to download the entries currently shown.</p>
+    <div class="f"><label for="exPass">Admin password</label><input id="exPass" type="password" autocomplete="off"></div>
+    <span class="err" id="exErr" hidden></span>
+    <div class="modal-actions">
+      <button class="btn" type="button" id="exCancel">Cancel</button>
+      <button class="btn blue" type="submit" id="exGo">Export CSV</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+const CATS=["Sales & Distribution","Customer Experience","Revenue & Finance","SIM Activation","Management Performance Review","Regulatory / Compliance","Marketing & Campaigns","Ad-hoc management request","Other"];
+const FREQ=["Ad-hoc","Daily","Weekly","Monthly","Quarterly","Annual"];
+const CHAN=["Email","PowerPoint","Excel","Dashboard","WhatsApp","Printed","Other"];
+const STAT=["Requested","In progress","Delivered","On hold","Cancelled"];
+const TYPES=["Manual","Digital","Automated","Semi-Automated"];
+const REGIONS={
+  "South East":["Abia","Anambra","Ebonyi","Enugu","Imo","Akwa Ibom","Bayelsa","Cross River","Delta","Edo","Rivers"],
+  "South West":["Ekiti","Ogun","Ondo","Osun","Oyo"],
+  "Lagos":["Lagos"],
+  "North":["Adamawa","Bauchi","Benue","Borno","FCT Abuja","Gombe","Jigawa","Kaduna","Kano","Katsina","Kebbi","Kogi","Kwara","Nasarawa","Niger","Plateau","Sokoto","Taraba","Yobe","Zamfara"]
+};
+const REGION_NOTE={"South East":"","South West":"","Lagos":"","North":""};
+const NAMES=["Weekly Sales & Distribution Report","Weekly Customer Experience Report","Weekly Management Performance Review","SIM Activation Tracker summary","Regional Initiatives update","Monthly Revenue Report"];
+const UNITS=["Office of the COO","Sales & Distribution","Customer Experience","Finance","Marketing","Regulatory","Commercial Planning & BI"];
+const FILTERS=["fSearch","fMonth","fYear","fType","fRegion","fCat","fStatus"];
+
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+const opts=(el,list,label)=>{el.insertAdjacentHTML("beforeend",list.map(v=>`<option value="${esc(v)}">${esc(label?label(v):v)}</option>`).join(""))};
+const regionLabel=r=>r;
+opts($("iCat"),CATS);opts($("iFreq"),FREQ);opts($("iChan"),CHAN);opts($("iStatus"),STAT);
+opts($("iRegion"),Object.keys(REGIONS),regionLabel);
+opts($("fCat"),CATS);opts($("fType"),TYPES,t=>t+" Report");opts($("fRegion"),Object.keys(REGIONS),regionLabel);
+STAT.forEach(s=>$("fStatus").insertAdjacentHTML("beforeend",`<option value="${esc(s)}">${esc(s)}</option>`));
+$("nameList").innerHTML=NAMES.map(n=>`<option value="${esc(n)}">`).join("");
+$("unitList").innerHTML=UNITS.map(n=>`<option value="${esc(n)}">`).join("");
+function fillStates(region,keep){
+  const st=REGIONS[region]||[];
+  $("iState").innerHTML=`<option value="">${st.length>1?"All states in this location":"—"}</option>`+st.map(s=>`<option>${esc(s)}</option>`).join("");
+  $("iState").value=st.includes(keep)?keep:(st.length===1?st[0]:"");
+}
+$("iRegion").addEventListener("change",()=>fillStates($("iRegion").value,""));
+
+const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const addDays=(s,n)=>{const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtD=s=>{if(!s)return "—";const[y,m,d]=s.split("-");return `${d} ${MON[+m-1]} ${y.slice(2)}`};
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+MONTHS.forEach((n,i)=>$("fMonth").insertAdjacentHTML("beforeend",`<option value="${String(i+1).padStart(2,"0")}">${n}</option>`));
+const fmtTS=n=>{if(!n)return "";const d=new Date(+n);return `${String(d.getDate()).padStart(2,"0")} ${MON[d.getMonth()]} ${String(d.getFullYear()).slice(2)}, ${d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}`};
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const fmtH=h=>h%1?h.toFixed(1):String(h);
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2600)}
+function showErr(el,m){el.textContent=m;el.hidden=!m}
+function fail(err){return ((err&&err.message)||String(err)).replace(/^Exception:\s*/,"")}
+
+let docs=[],editing=null,ready=false,busy=false,sortKey="seq",sortDir="desc";
+
+/* ===== Connection =====
+   Opened from your /exec link  -> uses Google's built-in connection (no team code needed).
+   Opened anywhere else         -> talks to your /exec link over the internet (asks for the team code). */
+const API_URL="https://script.google.com/macros/s/AKfycbwdXxbsbqqJQQAOmn-OSaLVGIN7EWtVa9LF6B0B1pSb6ANCKG7uGyPSAoKQx8gsKW3a/exec";
+const IN_APPS_SCRIPT=typeof google!=="undefined"&&google.script&&google.script.run;
+let API_KEY="";try{API_KEY=localStorage.getItem("lbTeamCode")||""}catch(e){}
+const connected=()=>true;
+const notConnectedMsg="";
+async function callApi(method,payload){
+  let res;
+  try{
+    res=method==="GET"
+      ?await fetch(API_URL+"?action=list&key="+encodeURIComponent(API_KEY),{method:"GET",redirect:"follow"})
+      :await fetch(API_URL,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({key:API_KEY},payload))});
+  }catch(e){throw new Error("No connection. Check your internet and try again.")}
+  let j;try{j=await res.json()}catch(e){throw new Error("The logbook service didn't respond properly. Check the Apps Script deployment is set to Anyone.")}
+  if(!j.ok)throw new Error(j.error||"Request failed");
+  return j.entries;
+}
+const api=IN_APPS_SCRIPT?()=>google.script.run:()=>{let ok=()=>{},bad=()=>{};const run=p=>p.then(v=>ok(v),e=>bad(e));
+  const o={withSuccessHandler(f){ok=f;return o},withFailureHandler(f){bad=f;return o},
+    getEntries(){run(callApi("GET"))},
+    saveEntry(data,id){run(callApi("POST",{action:"save",data,id}))},
+    deleteEntry(id,password){run(callApi("POST",{action:"delete",id,password}))},
+    exportEntries(password){run(callApi("POST",{action:"export",password}))}};return o};
+/* team access code screen (website only) */
+function onLocked(){$("notice").hidden=true;$("lockForm").hidden=false;$("lockErr").hidden=!API_KEY;$("newBtn").disabled=true;$("synced").textContent="Locked";setTimeout(()=>$("lockCode").focus(),30)}
+function onUnlocked(){$("lockForm").hidden=true;$("newBtn").disabled=false}
+$("lockForm").addEventListener("submit",e=>{e.preventDefault();API_KEY=$("lockCode").value.trim();try{localStorage.setItem("lbTeamCode",API_KEY)}catch(err){}$("synced").textContent="Checking code…";load()});
+
+
+function setDocs(list){docs=(list||[]);ready=true;$("notice").hidden=true;
+  $("synced").textContent="Last synced "+new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});render()}
+function loadFailed(e){
+  ready=true;
+  if(typeof onLocked==="function"&&/access code/i.test(fail(e))){onLocked();render();return}
+  $("notice").textContent="The logbook couldn't load: "+fail(e)+" Use Refresh to try again.";$("notice").hidden=false;render();
+}
+function load(){
+  if(!connected()){ready=true;$("synced").textContent="Not connected";$("notice").textContent=notConnectedMsg;$("notice").hidden=false;$("newBtn").disabled=true;render();return}
+  api().withSuccessHandler(list=>{if(typeof onUnlocked==="function")onUnlocked();setDocs(list)}).withFailureHandler(loadFailed).getEntries();
+}
+
+/* ---------- logic ---------- */
+const isOpen=r=>!["Delivered","Cancelled"].includes(r.status);
+const isOverdue=r=>r.dueDate&&isOpen(r)&&r.dueDate<today();
+const isSoon=r=>r.dueDate&&isOpen(r)&&r.dueDate>=today()&&r.dueDate<=addDays(today(),7);
+const daysBetween=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
+function timing(r){
+  if(r.status==="Delivered"&&r.dueDate&&r.deliveredDate)return r.deliveredDate<=r.dueDate?["ontime","On time"]:["late","Late "+daysBetween(r.dueDate,r.deliveredDate)+"d"];
+  if(isOverdue(r))return ["overdue","Overdue "+daysBetween(r.dueDate,today())+"d"];
+  if(isSoon(r)){const n=daysBetween(today(),r.dueDate);return ["soon",n===0?"Due today":"Due in "+n+"d"]}
+  return null;
+}
+const logNo=r=>r.logNo||"LB-????";
+const seqOf=r=>{const m=String(r.logNo||"").match(/(\d+)$/);return m?+m[1]:0};
+
+function filtered(except){
+  const v=id=>id===except?"":$(id).value;
+  const q=v("fSearch").trim().toLowerCase(),m=v("fMonth"),y=v("fYear"),c=v("fCat"),s=v("fStatus"),t=v("fType"),g=v("fRegion");
+  return docs.filter(r=>{
+    if(m&&(r.requestedDate||"").slice(5,7)!==m)return false;
+    if(y&&(r.requestedDate||"").slice(0,4)!==y)return false;
+    if(c&&r.category!==c)return false;
+    if(t&&r.reportType!==t)return false;
+    if(g&&r.region!==g)return false;
+    if(s==="__open"&&!isOpen(r))return false;
+    if(s==="__overdue"&&!isOverdue(r))return false;
+    if(s==="__soon"&&!isSoon(r))return false;
+    if(s&&!s.startsWith("__")&&r.status!==s)return false;
+    if(q&&![logNo(r),r.reportName,r.reportType,r.region,r.state,r.category,r.requestedBy,r.requestingUnit,r.preparedBy,r.remarks,r.dataSources].join(" ").toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+const STATUS_ORDER={"Requested":0,"In progress":1,"On hold":2,"Delivered":3,"Cancelled":4};
+function sorted(list){
+  const k=sortKey,dir=sortDir==="asc"?1:-1;
+  const val=r=>k==="seq"?seqOf(r):k==="hours"?(r.hours===""||r.hours==null?-1:+r.hours):k==="status"?STATUS_ORDER[r.status]??9:String(r[k]||"").toLowerCase();
+  return list.slice().sort((a,b)=>{const x=val(a),y=val(b);
+    const emptyX=x===""||x===-1,emptyY=y===""||y===-1;           // blanks always last
+    if(emptyX!==emptyY)return emptyX?1:-1;
+    return (x>y?1:x<y?-1:0)*dir||(seqOf(b)-seqOf(a));});
+}
+
+/* ---------- render ---------- */
+function render(){
+  const years=[...new Set([today().slice(0,4),...docs.map(r=>(r.requestedDate||"").slice(0,4)).filter(Boolean)])].sort().reverse();
+  const fy=$("fYear"),curY=fy.value;
+  fy.innerHTML=`<option value="">Year</option>`+years.map(y=>`<option value="${y}">${y}</option>`).join("");
+  fy.value=years.includes(curY)?curY:"";
+  const periodLabel=[$("fMonth").value?MONTHS[+$("fMonth").value-1]:"",fy.value].filter(Boolean).join(" ");
+  const uniq=k=>[...new Set(docs.map(r=>r[k]).filter(Boolean))].map(n=>`<option value="${esc(n)}">`).join("");
+  $("prepList").innerHTML=uniq("preparedBy");$("reqList").innerHTML=uniq("requestedBy");
+  FILTERS.forEach(id=>$(id).classList.toggle("on",!!$(id).value&&id!=="fSearch"));
+  $("clearBtn").hidden=!FILTERS.some(id=>$(id).value);
+
+  const list=sorted(filtered());
+  // KPIs
+  const del=list.filter(r=>r.status==="Delivered"),timed=del.filter(r=>r.dueDate&&r.deliveredDate),on=timed.filter(r=>r.deliveredDate<=r.dueDate).length;
+  const typed=list.filter(r=>r.reportType),aut=typed.filter(r=>r.reportType==="Digital").length,man=typed.filter(r=>r.reportType==="Manual").length;
+  const over=list.filter(isOverdue).length,soon=list.filter(isSoon).length,open=list.filter(isOpen).length;
+  const manH=list.filter(r=>r.reportType==="Manual").reduce((a,r)=>a+(+r.hours||0),0),allH=list.reduce((a,r)=>a+(+r.hours||0),0);
+  $("tTotal").textContent=list.length;
+  $("tTotalS").textContent=list.length?`${del.length} delivered · ${open} open`:(periodLabel?"None in "+periodLabel:"No entries yet");
+  $("tAuto").textContent=typed.length?pct(aut,typed.length)+"%":"—";$("tAutoBar").style.width=pct(aut,typed.length)+"%";
+  $("tAutoS").textContent=typed.length?`${aut} digital · ${man} manual`:"share of reports that are digital";
+  $("tOn").textContent=timed.length?pct(on,timed.length)+"%":"—";$("tOnBar").style.width=pct(on,timed.length)+"%";
+  $("tOnS").textContent=timed.length?`${on} of ${timed.length} delivered by due date`:"of delivered reports with a due date";
+  $("tOver").textContent=over;$("tOverBox").classList.toggle("alert",over>0);
+  $("tOverS").textContent=soon?`${soon} more due in the next 7 days`:"past due, not delivered";
+  $("tHrs").textContent=fmtH(manH);
+  $("tHrsS").textContent=allH?`${pct(manH,allH)}% of ${fmtH(allH)} h logged · time going digital could free up`:"time that going digital could free up";
+  // location breakdown (ignores the location filter so all four always show)
+  const base=filtered("fRegion"),selR=$("fRegion").value,maxN=Math.max(1,...Object.keys(REGIONS).map(g=>base.filter(r=>r.region===g).length));
+  $("regions").innerHTML=Object.keys(REGIONS).map(g=>{const rs=base.filter(r=>r.region===g),od=rs.filter(isOverdue).length,au=rs.filter(r=>r.reportType==="Digital").length;
+    return `<button type="button" class="reg" data-region="${esc(g)}" aria-pressed="${selR===g}">
+      <span class="reg-top"><span class="reg-name">${esc(g)}</span><span class="reg-n">${rs.length}</span></span>
+      <span class="meter"><i style="width:${Math.round(rs.length/maxN*100)}%"></i></span>
+      <span class="reg-sub"><span>${esc(REGION_NOTE[g])}</span><span>${od?`<span class="od">${od} overdue</span> · `:""}${rs.length?pct(au,rs.length)+"% digital":"no entries"}</span></span></button>`}).join("");
+  $("count").textContent=ready?`${list.length} of ${docs.length} entries`:"";
+  // sort indicators
+  document.querySelectorAll("th button[data-sort]").forEach(b=>{const on=b.dataset.sort===sortKey;if(on)b.dataset.dir=sortDir;else delete b.dataset.dir;
+    b.querySelector(".arr").textContent=on&&sortDir==="asc"?"▲":"▼";b.closest("th").setAttribute("aria-sort",on?(sortDir==="asc"?"ascending":"descending"):"none")});
+  // table
+  $("rows").innerHTML=list.map(r=>{const t=timing(r),ty=r.reportType||"";return `<tr data-id="${esc(r.id)}" tabindex="0" class="${isOverdue(r)?"is-overdue":""}">
+    <td class="no">${esc(logNo(r))}</td><td class="date">${fmtD(r.requestedDate)}</td>
+    <td>${ty?`<span class="type type-${esc(ty)}">${esc(ty)}</span>`:""}<div class="rname">${esc(r.reportName)}</div>${r.remarks?`<div class="sub">${esc(r.remarks.length>80?r.remarks.slice(0,80)+"…":r.remarks)}</div>`:""}</td>
+    <td><div class="region">${esc(r.region||"—")}</div>${r.state?`<div class="sub">${esc(r.state)}</div>`:""}</td>
+    <td>${esc(r.category)}</td><td>${esc(r.frequency||"")}</td>
+    <td>${esc(r.requestedBy)}${r.requestingUnit?`<div class="sub">${esc(r.requestingUnit)}</div>`:""}</td>
+    <td>${esc(r.preparedBy)}</td>
+    <td class="date">${fmtD(r.dueDate)}</td>
+    <td class="date">${fmtD(r.deliveredDate)}${t?`<div class="flag ${t[0]}">${t[1]}</div>`:""}</td>
+    <td><span class="pill st-${String(r.status||"Requested").replace(/\s+/g,"-")}">${esc(r.status||"Requested")}</span></td>
+    <td class="num">${r.hours!==""&&r.hours!=null?esc(r.hours):"—"}</td></tr>`}).join("");
+  // phone cards
+  $("cards").innerHTML=list.map(r=>{const t=timing(r),ty=r.reportType||"";return `<li class="card ${isOverdue(r)?"is-overdue":""}" data-id="${esc(r.id)}" tabindex="0">
+    <div class="card-top"><div>${ty?`<span class="type type-${esc(ty)}">${esc(ty)}</span>`:""}<div class="rname">${esc(r.reportName)}</div></div><span class="pill st-${String(r.status||"Requested").replace(/\s+/g,"-")}">${esc(r.status||"Requested")}</span></div>
+    <div class="card-meta"><span>${esc(logNo(r))}</span><span><b>${esc(r.region||"—")}</b>${r.state?" · "+esc(r.state):""}</span><span>Requested <b>${fmtD(r.requestedDate)}</b></span>${r.dueDate?`<span>Due <b>${fmtD(r.dueDate)}</b></span>`:""}${t?`<span class="flag ${t[0]}">${t[1]}</span>`:""}</div>
+    <div class="card-meta"><span>By <b>${esc(r.preparedBy)}</b> for ${esc(r.requestedBy)}</span></div></li>`}).join("");
+  $("empty").hidden=list.length>0;
+  if(!list.length){
+    if(!ready){$("emptyH").textContent="Loading the logbook…";$("emptyP").textContent="Entries recorded by the team appear here.";$("emptyBtn").hidden=true}
+    else if(docs.length){$("emptyH").textContent="No entries match these filters";$("emptyP").textContent="Clear the filters or search for something else.";$("emptyBtn").hidden=true}
+    else{$("emptyH").textContent="No reports logged yet";$("emptyP").textContent="Each report the team prepares gets one line here. Log the first one to start the register.";$("emptyBtn").hidden=false}
+  }
+}
+FILTERS.forEach(id=>$(id).addEventListener("input",render));
+$("clearBtn").onclick=()=>{FILTERS.forEach(id=>$(id).value="");render()};
+$("regions").addEventListener("click",e=>{const b=e.target.closest(".reg");if(!b)return;const g=b.dataset.region;$("fRegion").value=$("fRegion").value===g?"":g;render()});
+document.querySelector("thead").addEventListener("click",e=>{const b=e.target.closest("button[data-sort]");if(!b)return;const k=b.dataset.sort;
+  if(sortKey===k)sortDir=sortDir==="asc"?"desc":"asc";else{sortKey=k;sortDir=["seq","requestedDate","dueDate","deliveredDate","hours"].includes(k)?"desc":"asc"}render()});
+
+/* ---------- entry form ---------- */
+const F={reportName:"iName",category:"iCat",frequency:"iFreq",requestedBy:"iReqBy",requestingUnit:"iUnit",preparedBy:"iPrep",deliveryChannel:"iChan",requestedDate:"iReq",dueDate:"iDue",deliveredDate:"iDel",status:"iStatus",hours:"iHrs",dataSources:"iSrc",remarks:"iRem"};
+const getType=()=>{const c=document.querySelector('input[name="iType"]:checked');return c?c.value:""};
+const setType=v=>{document.querySelectorAll('input[name="iType"]').forEach(x=>x.checked=x.value===v)};
+function fillForm(r,asNew){
+  for(const k in F)$(F[k]).value=r?(r[k]??""):"";
+  setType(r&&r.reportType?r.reportType:"Manual");
+  $("iRegion").value=r&&REGIONS[r.region]?r.region:"Lagos";
+  fillStates($("iRegion").value,r?r.state:"");
+  if(!r){$("iCat").value=CATS[0];$("iFreq").value="Weekly";$("iChan").value="Email"}
+  if(!r||asNew){$("iStatus").value="Requested";$("iReq").value=today();$("iDue").value="";$("iDel").value="";$("iHrs").value="";$("iRem").value=""}
+}
+function openForm(r,asNew){
+  editing=r&&!asNew?r:null;
+  $("dTitle").textContent=editing?`Edit ${logNo(r)}`:asNew?`Log again: ${r.reportName}`:"Log a report";
+  fillForm(r,asNew);
+  const m=$("metaLine");
+  if(editing){m.textContent=`Logged ${fmtTS(r.createdAt)}${r.loggedBy?" by "+r.loggedBy:""}${r.updatedAt&&+r.updatedAt>+r.createdAt+1000?" · last updated "+fmtTS(r.updatedAt):""}`;m.hidden=false}else m.hidden=true;
+  $("delBtn").hidden=!editing;$("againBtn").hidden=!editing;$("delConfirm").hidden=true;showErr($("formErr"),"");
+  $("scrim").hidden=false;$("drawer").hidden=false;setTimeout(()=>(asNew?$("iDue"):$("iName")).focus(),30);
+}
+function closeForm(){$("scrim").hidden=true;$("drawer").hidden=true;$("delPass").value="";editing=null}
+$("newBtn").onclick=$("emptyBtn").onclick=()=>openForm();
+$("closeBtn").onclick=$("cancelBtn").onclick=$("scrim").onclick=closeForm;
+$("againBtn").onclick=()=>{const r=editing;openForm(r,true)};
+const pick=e=>{const el=e.target.closest("[data-id]");return el?docs.find(d=>d.id===el.dataset.id):null};
+["rows","cards"].forEach(id=>{
+  $(id).addEventListener("click",e=>{const r=pick(e);if(r)openForm(r)});
+  $(id).addEventListener("keydown",e=>{if(e.key==="Enter"){const r=pick(e);if(r)openForm(r)}});
+});
+$("iDel").addEventListener("change",()=>{if($("iDel").value&&["Requested","In progress"].includes($("iStatus").value))$("iStatus").value="Delivered"});
+$("iStatus").addEventListener("change",()=>{if($("iStatus").value==="Delivered"&&!$("iDel").value)$("iDel").value=today()});
+
+$("form").addEventListener("submit",e=>{
+  e.preventDefault();if(busy)return;
+  const d={};for(const k in F)d[k]=$(F[k]).value.trim();
+  d.reportType=getType();d.region=$("iRegion").value;d.state=$("iState").value;
+  const miss=[["reportName","report name"],["reportType","type of report"],["region","location"],["requestedBy","who requested it"],["preparedBy","who prepared it"],["requestedDate","the requested date"]].filter(([k])=>!d[k]).map(x=>x[1]);
+  let msg=miss.length?"Add "+miss.join(", ")+".":"";
+  if(!msg&&d.dueDate&&d.dueDate<d.requestedDate)msg="The due date is before the requested date.";
+  if(!msg&&d.deliveredDate&&d.deliveredDate<d.requestedDate)msg="The delivered date is before the requested date.";
+  if(!msg&&d.status==="Delivered"&&!d.deliveredDate)msg="Add the delivered date for a delivered report.";
+  if(msg){showErr($("formErr"),msg);return}
+  busy=true;$("saveBtn").disabled=true;$("saveBtn").textContent="Saving…";
+  const wasEdit=!!editing;
+  const done=()=>{busy=false;$("saveBtn").disabled=false;$("saveBtn").textContent="Save entry"};
+  api().withSuccessHandler(list=>{done();setDocs(list);closeForm();toast(wasEdit?"Entry updated":"Report logged")})
+       .withFailureHandler(err=>{done();showErr($("formErr"),"The entry didn't save: "+fail(err))})
+       .saveEntry(d,editing?editing.id:"");
+});
+$("delBtn").onclick=()=>{$("delPass").value="";showErr($("delErr"),"");$("delConfirm").hidden=false;$("delBtn").hidden=true;$("againBtn").hidden=true;showErr($("formErr"),"");setTimeout(()=>$("delPass").focus(),30)};
+$("delNo").onclick=()=>{$("delPass").value="";$("delConfirm").hidden=true;$("delBtn").hidden=false;$("againBtn").hidden=false;showErr($("formErr"),"")};
+function doDelete(){
+  const pw=$("delPass").value;
+  if(!pw){showErr($("delErr"),"Enter the admin password.");$("delPass").focus();return}
+  const no=logNo(editing);$("delYes").disabled=true;$("delYes").textContent="Checking…";
+  const done=()=>{$("delYes").disabled=false;$("delYes").textContent="Delete"};
+  api().withSuccessHandler(list=>{done();$("delPass").value="";setDocs(list);closeForm();toast(no+" deleted")})
+       .withFailureHandler(err=>{done();showErr($("delErr"),"Not deleted: "+fail(err));$("delPass").select()})
+       .deleteEntry(editing.id,pw);
+}
+$("delYes").onclick=doDelete;
+$("delPass").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();doDelete()}});
+
+/* ---------- admin export ---------- */
+function openExport(){$("exPass").value="";showErr($("exErr"),"");$("exScrim").hidden=false;$("exModal").hidden=false;setTimeout(()=>$("exPass").focus(),30)}
+function closeExport(){$("exScrim").hidden=true;$("exModal").hidden=true;$("exPass").value=""}
+$("exportBtn").onclick=openExport;
+$("exCancel").onclick=$("exScrim").onclick=closeExport;
+$("exForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const pw=$("exPass").value;
+  if(!pw){showErr($("exErr"),"Enter the admin password.");return}
+  $("exGo").disabled=true;$("exGo").textContent="Checking…";
+  const done=()=>{$("exGo").disabled=false;$("exGo").textContent="Export CSV"};
+  api().withSuccessHandler(all=>{done();closeExport();downloadCsv(all);toast("CSV exported")})
+       .withFailureHandler(err=>{done();showErr($("exErr"),fail(err))})
+       .exportEntries(pw);
+});
+function downloadCsv(all){
+  const anyFilter=FILTERS.some(id=>$(id).value);
+  const ids=new Set(filtered().map(r=>r.id));
+  const list=sorted(anyFilter?(all||[]).filter(r=>ids.has(r.id)):(all||[]));
+  const head=["Log no.","Requested Date","Type of Report","Report name","Location","State","Category","Frequency","Requested by","Requesting unit","Prepared by","Delivered via","Due Date","Delivered Date","Status","Timing","Hours","Data sources","Remarks","Logged by"];
+  const q=v=>{v=String(v??"");return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};
+  const rows=list.map(r=>{const t=timing(r);return [logNo(r),r.requestedDate,r.reportType,r.reportName,r.region,r.state,r.category,r.frequency,r.requestedBy,r.requestingUnit,r.preparedBy,r.deliveryChannel,r.dueDate,r.deliveredDate,r.status,t?t[1]:"",r.hours,r.dataSources,r.remarks,r.loggedBy].map(q).join(",")});
+  const blob=new Blob(["﻿"+[head.join(","),...rows].join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`Lebara-report-logbook-${today()}.csv`;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+}
+
+/* ---------- keyboard ---------- */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){if(!$("exModal").hidden)closeExport();else if(!$("drawer").hidden)closeForm();return}
+  const typing=/INPUT|TEXTAREA|SELECT/.test((e.target.tagName||""))||e.target.isContentEditable;
+  if(typing||e.ctrlKey||e.metaKey||e.altKey||!$("drawer").hidden||!$("exModal").hidden)return;
+  if((e.key==="n"||e.key==="N")&&!$("newBtn").disabled){e.preventDefault();openForm()}
+  if(e.key==="/"){e.preventDefault();$("fSearch").focus()}
+});
+
+$("refreshBtn").onclick=()=>{$("synced").textContent="Refreshing…";load()};
+render();
+load();
+setInterval(()=>{if($("drawer").hidden&&$("exModal").hidden&&!document.hidden)load()},120000);
+})();
+</script>
+</body>
+</html>
